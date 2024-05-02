@@ -1,0 +1,14 @@
+{
+  "name": "ants",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --hot cmd.ts dev",
+    "build": "bun run cmd.ts build"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

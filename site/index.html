@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+    <style>
+        body {
+            max-width: unset;
+            background: #333;
+            color: #0ee;
+        }
+
+        #canvas-container {
+            display: flex;
+            justify-content: center;
+        }
+
+        #buttons {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 5px;
+        }
+
+        canvas {
+            border: 1px solid white;
+        }
+
+        input {
+            width: 40px;
+        }
+    </style>
+
+    <div id="buttons">
+        <select>
+            <option>select &amp; move</option>
+            <option>insert</option>
+        </select>
+    </div>
+    <div id="canvas-container">
+        <canvas></canvas>
+    </div>
+    <p id="debug"></p>
+
+    <script src="/scripts/client.js"></script>
+</body>
+
+</html>
