@@ -43,7 +43,7 @@ async function dev() {
     watch(config.site, { recursive: true }, function () {
       globalThis.reloaded.emit("reload");
     });
-    watch(config.src, function () {
+    watch(config.src, { recursive: true }, function () {
       Bun.build({
         entrypoints,
         outdir: config.dest,

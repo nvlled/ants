@@ -2,7 +2,10 @@ export type Pos = [number, number];
 
 export class Grid {
   pos = { x: 0, y: 0 };
+
   scale = 1;
+  origin = { x: 0, y: 0 };
+
   display = {
     margin: 0,
     rectSize: 10,
@@ -33,6 +36,14 @@ export class Grid {
     return [Math.floor(index / 10 ** size), index % 10 ** size];
   }
 
+  toggle(i: number, j: number) {
+    if (this.isSelected(i, j)) {
+      this.deselect(i, j);
+    } else {
+      this.select(i, j);
+    }
+  }
+
   select(i: number, j: number) {
     const index = this.posToInt(i, j);
     if (this.getValue(i, j)) {
@@ -47,6 +58,10 @@ export class Grid {
 
   isSelected(i: number, j: number) {
     return this.selected.has(this.posToInt(i, j));
+  }
+
+  hasSelected() {
+    return this.selected.size > 0;
   }
 
   clearSelected() {
