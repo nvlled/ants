@@ -55,8 +55,8 @@ class MoveSelectHandler implements InputHandler {
     mouse.current = [x, y];
 
     if (mouse.button == MouseButton.middle) {
-      grid.origin.x -= dx;
-      grid.origin.y -= dy;
+      grid.origin.x -= dx / grid.scale;
+      grid.origin.y -= dy / grid.scale;
     }
     return true;
   }
@@ -257,9 +257,9 @@ function main() {
     throw "missing nodes";
   }
 
-  canvas.width = 1200;
-  canvas.height = 600;
-
+  let [cwidth, cheight, aspw, asph] = getCanvasSize(canvas, 720);
+  canvas.width = cwidth;
+  canvas.height = cheight;
   bufferCanvas.width = canvas.width;
   bufferCanvas.height = canvas.height;
 
@@ -270,16 +270,16 @@ function main() {
     throw "failed to get canvas contexts";
   }
 
-  //let scale = 1.5;
-  const grid = new Grid(100, 100, [
-    [[0, 0], 1],
-    [[1, 1], 1],
-    [[2, 2], 1],
-    [[3, 3], 1],
-    [[5, 10], 1],
-    [[1, 10], 1],
-    [[5, 1], 1],
-  ]);
+  const grid = new Grid(150, 100);
+  grid.display.rectSize = 10;
+  grid.display.margin = 2;
+
+  for (let i = 2; i < 10; i += 2) {
+    for (let j = 2; j < 10; j++) {
+      grid.setValue(i, j, 1);
+    }
+  }
+
   const inputHandler = new MoveSelectHandler(grid);
   const stateLoader = new GridStateLoader();
   stateLoader.restore(grid);
@@ -288,18 +288,6 @@ function main() {
     console.log("state saved");
     stateLoader.save(grid);
   });
-
-  function getMousePos(e: MouseEvent) {
-    const canvasRect = canvas.getBoundingClientRect();
-    const r = canvasRect;
-    let [x, y] = [
-      (e.clientX - r.left) / grid.scale,
-      (e.clientY - r.top) / grid.scale,
-    ];
-    x = Math.floor(x + grid.origin.x);
-    y = Math.floor(y + grid.origin.y);
-    return [x, y];
-  }
 
   canvas.onwheel = function (e) {
     e.preventDefault();
@@ -322,15 +310,28 @@ function main() {
 
   canvas.onmousemove = function (e) {
     const [x, y] = getMousePos(e);
-    inputHandler.onMouseMove(x, y, e.movementX, e.movementY);
-    saveState();
+    if (inputHandler.onMouseMove(x, y, e.movementX, e.movementY)) {
+      saveState();
+    }
   };
 
   document.addEventListener("mouseup", function (ev) {
     const [x, y] = getMousePos(ev);
-    inputHandler.onMouseUp(x, y, ev.button);
-    saveState();
+    if (inputHandler.onMouseUp(x, y, ev.button)) {
+      saveState();
+    }
   });
+
+  window.addEventListener("resize", function (ev) {
+    [cwidth, cheight, aspw, asph] = getCanvasSize(canvas, 640);
+    canvas.width = cwidth;
+    canvas.height = cheight;
+
+    bufferCanvas.width = canvas.width;
+    bufferCanvas.height = canvas.height;
+  });
+
+  requestAnimationFrame(loop);
 
   function loop() {
     mainCtx.clearRect(0, 0, canvas.width, canvas.height);
@@ -351,7 +352,9 @@ function main() {
         ctx.fillStyle = "#0f0";
         ctx.fillRect(a, b, c, d);
       }
+      ctx.setLineDash(selected ? [2] : []);
       ctx.strokeStyle = selected ? "#f00" : "#333";
+      ctx.lineWidth = (selected ? 1.5 : 1) / grid.scale;
       ctx.strokeRect(a, b, c, d);
     }
 
@@ -364,7 +367,28 @@ function main() {
     requestAnimationFrame(loop);
   }
 
-  requestAnimationFrame(loop);
+  function getMousePos(e: MouseEvent) {
+    const canvasRect = canvas.getBoundingClientRect();
+    const r = canvasRect;
+    let [x, y] = [
+      ((e.clientX - r.left) / grid.scale) * aspw,
+      ((e.clientY - r.top) / grid.scale) * asph,
+    ];
+    x = Math.floor(x + grid.origin.x);
+    y = Math.floor(y + grid.origin.y);
+    return [x, y];
+  }
+
+  function getCanvasSize(canvas: HTMLCanvasElement, resolution: number) {
+    const cs = getComputedStyle(canvas);
+    const [dwidth, dheight] = [parseInt(cs.width, 10), parseInt(cs.height, 10)];
+    const aspectRatio = dheight / dwidth;
+    const cwidth = resolution;
+    const cheight = Math.floor(cwidth * aspectRatio);
+    const [aspw, asph] = [cwidth / dwidth, cheight / dheight];
+
+    return [cwidth, cheight, aspw, asph];
+  }
 }
 
 main();

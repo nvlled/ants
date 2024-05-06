@@ -7,7 +7,7 @@ export class Grid {
   origin = { x: 0, y: 0 };
 
   display = {
-    margin: 0,
+    margin: 2,
     rectSize: 10,
   };
   rows = 0;
@@ -15,7 +15,7 @@ export class Grid {
   selected: Set<number> = new Set();
   data: number[] = [];
 
-  constructor(rows: number, cols: number, init: [Pos, number][]) {
+  constructor(rows: number, cols: number, init?: [Pos, number][]) {
     this.rows = rows;
     this.cols = cols;
 
