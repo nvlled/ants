@@ -4,37 +4,27 @@
 <body>
     <style>
         body {
-            max-width: unset;
             background: #333;
             color: #0ee;
         }
 
-        #canvas-container {
-            display: flex;
-            justify-content: center;
-        }
+        #canvas-container {}
 
         #buttons {
             display: flex;
-            justify-content: center;
             margin-bottom: 5px;
         }
 
         canvas {
-            border: 1px solid white;
+            width: 99vw;
+            height: 90vh;
         }
 
-        input {
-            width: 40px;
-        }
+        input {}
     </style>
 
-    <div id="buttons">
-        <select>
-            <option>select &amp; move</option>
-            <option>insert</option>
-        </select>
-    </div>
+    <div id="sidebar-container"></div>
+
     <div id="canvas-container">
         <canvas></canvas>
     </div>

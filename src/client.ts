@@ -1,8 +1,9 @@
-import Grid, { type Pos } from "./lib/grid";
-import { GridStateLoader } from "./lib/grid_loader";
+import Grid, { type Pos, GridStateLoader } from "./lib/grid";
+import { createRoot } from "react-dom/client";
+import { Settings, mountSettings } from "./lib/settings";
 import { throttle } from "./lib/throttle";
+import { createConfigStore } from "./lib/config";
 
-console.log("client loaded");
 const MouseButton = {
   left: 0,
   middle: 1,
@@ -249,6 +250,28 @@ class InsertHandler implements InputHandler {
 }
 
 function main() {
+  const sidebar = document.querySelector(
+    "#sidebar-container"
+  ) as HTMLDivElement;
+  if (!sidebar) {
+    throw "sidebar not found";
+  }
+
+  const configStore = createConfigStore();
+
+  try {
+    const config = JSON.parse(localStorage.getItem("config") ?? "");
+    configStore.replace(config);
+  } catch (e) {
+    console.log("failed to read saved config", e);
+  }
+
+  configStore.on(function (config) {
+    localStorage.setItem("config", JSON.stringify(config));
+  });
+
+  mountSettings(configStore, sidebar);
+
   const bufferCanvas = document.createElement("canvas");
   const canvas = document.querySelector("canvas")!;
   const debug = document.querySelector("#debug");
@@ -392,3 +415,8 @@ function main() {
 }
 
 main();
+
+// TODO: paint and fill
+// TODO: copy and paste
+// TODO: rotate selection, paste
+// TODO: minimap
