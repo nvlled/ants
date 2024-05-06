@@ -1,14 +1,20 @@
 {
   "name": "ants",
-  "type": "module",
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
   "scripts": {
     "dev": "bun run --hot cmd.ts dev",
     "build": "bun run cmd.ts build"
   },
-  "devDependencies": {
-    "@types/bun": "latest"
+  "type": "module",
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0"
   }
 }

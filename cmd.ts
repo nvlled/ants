@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import { watch } from "node:fs";
 import { EventEmitter } from "node:events";
 import config from "./config";
+import type { BuildConfig } from "bun";
 
 const command = process.argv.pop();
 const entrypoints = Array.from(
@@ -33,22 +34,19 @@ function build() {
 }
 
 async function dev() {
-  Bun.build({
+  const options: BuildConfig = {
     entrypoints,
     outdir: config.dest,
     target: "browser",
-  });
+  };
+  Bun.build(options);
 
   if (!globalThis.reloadCount) {
     watch(config.site, { recursive: true }, function () {
       globalThis.reloaded.emit("reload");
     });
     watch(config.src, { recursive: true }, function () {
-      Bun.build({
-        entrypoints,
-        outdir: config.dest,
-        target: "browser",
-      });
+      Bun.build(options);
     });
   }
 
