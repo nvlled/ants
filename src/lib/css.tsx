@@ -6,12 +6,13 @@ import { IdSet } from "./idset";
 
 export type FunctionWithCSS = Function & { css: string };
 
-export function css(styleStr: TemplateStringsArray, ...args: unknown[]) {
-  if (args.length > 0 || styleStr.length > 1) {
-    throw "css does not support interpolation (yet), please use a static string";
+export function css(strings: TemplateStringsArray, ...args: string[]) {
+  const values: string[] = [];
+  for (let i = 0; i < strings.raw.length; i++) {
+    values.push(strings.raw[i]);
+    if (args[i]) values.push(args[i].toString());
   }
-
-  return styleStr[0];
+  return values.join("").trim();
 }
 
 export const CssContext = createContext(new IdSet());
@@ -41,9 +42,16 @@ export function useCSS(
 
   if (called) return (_: unknown) => {};
 
-  return (css: TemplateStringsArray) => {
+  return (strings: TemplateStringsArray, ...args: string[]) => {
+    const values: string[] = [];
+    for (let i = 0; i < strings.raw.length; i++) {
+      values.push(strings.raw[i]);
+      if (args[i]) values.push(args[i].toString());
+    }
+    const css = values.join("").trim();
+
     setCalled(true);
-    setCss(css[0]);
+    setCss(css);
   };
 }
 

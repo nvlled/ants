@@ -17,6 +17,7 @@ import {
   type ConfigStore,
   type Mode,
 } from "./config";
+import { CellColor } from "./grid";
 
 const store = createConfigStore();
 const ConfigContext = createContext<Config>(store.current);
@@ -125,30 +126,30 @@ function PaintSettings() {
   const store = useContext(StoreContext);
   const paint = config.paint;
 
+  const s = `${config.mode}`;
+
   const css = useCSS(PaintSettings, { scope: "#paint" });
   css`
-    .color-block.red {
-      background: red;
+    .color-block.c0 {
+      background: ${CellColor[0]};
     }
-
-    .color-block.blue {
-      background: blue;
+    .color-block.c1 {
+      background: ${CellColor[1]};
     }
-
-    .color-block.green {
-      background: green;
+    .color-block.c2 {
+      background: ${CellColor[2]};
     }
-
-    .color-block.yellow {
-      background: yellow;
+    .color-block.c3 {
+      background: ${CellColor[3]};
     }
-
-    .color-block.cyan {
-      background: cyan;
+    .color-block.c4 {
+      background: ${CellColor[4]};
     }
-
-    .color-block.violet {
-      background: violet;
+    .color-block.c5 {
+      background: ${CellColor[5]};
+    }
+    .color-block.c5 {
+      background: ${CellColor[5]};
     }
 
     .color-block {
@@ -197,28 +198,42 @@ function PaintSettings() {
           />
           fill
         </label>
+        <span> </span>
+        <label>
+          <input
+            type="radio"
+            name="paint"
+            checked={paint.mode == "erase"}
+            onChange={() => changeMode("erase")}
+          />
+          erase
+        </label>
       </div>
       <br />
-      <label>
-        cell color:
-        {["red", "blue", "green", "yellow", "cyan", "violet"].map((c) => (
-          <div
-            key={c}
-            className={
-              "color-block " + c + (paint.color == c ? " selected" : "")
-            }
-            onClick={() =>
-              store.dispatch({
-                type: "updatePaint",
-                data: {
-                  ...paint,
-                  color: c,
-                },
-              })
-            }
-          ></div>
-        ))}
-      </label>
+      {paint.mode != "erase" && (
+        <label>
+          cell color:
+          {Object.entries(CellColor).map(([i, c]) => (
+            <div
+              key={i + c}
+              className={
+                "color-block c" +
+                i +
+                (paint.color == parseInt(i, 10) ? " selected" : "")
+              }
+              onClick={() =>
+                store.dispatch({
+                  type: "updatePaint",
+                  data: {
+                    ...paint,
+                    color: parseInt(i, 10),
+                  },
+                })
+              }
+            ></div>
+          ))}
+        </label>
+      )}
     </div>
   );
 }

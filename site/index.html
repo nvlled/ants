@@ -28,12 +28,16 @@
             cursor: url(/images/fill.cur) 6 15, auto;
         }
 
-
-        input {}
+        #status-bar {
+            text-align: center;
+        }
     </style>
 
     <div id="sidebar-container"></div>
 
+    <div id="status-bar">
+        <span>cells</span>[selected=<span id="selected-count">0</span>]
+    </div>
     <div id="canvas-container">
         <canvas></canvas>
     </div>

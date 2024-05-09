@@ -1,4 +1,4 @@
-import Grid, { type Pos, GridStateLoader } from "./lib/grid";
+import Grid, { type Pos, GridStateLoader, CellColor } from "./lib/grid";
 import { createRoot } from "react-dom/client";
 import { Settings, mountSettings } from "./lib/settings";
 import { throttle } from "./lib/throttle";
@@ -54,8 +54,8 @@ function main() {
   }
 
   const grid = new Grid(150, 100);
-  grid.display.rectSize = 10;
-  grid.display.margin = 2;
+  grid.display.rectSize = 30;
+  grid.display.margin = 1;
 
   for (let i = 2; i < 10; i += 2) {
     for (let j = 2; j < 10; j++) {
@@ -168,14 +168,20 @@ function main() {
       const selected = grid.isSelected(i, j);
 
       const val = grid.getValue(i, j);
-      if (val) {
-        ctx.fillStyle = "#0f0";
+      if (val != null) {
+        ctx.fillStyle = CellColor[val];
         ctx.fillRect(a, b, c, d);
       }
-      ctx.setLineDash(selected ? [2] : []);
-      ctx.strokeStyle = selected ? "#f00" : "#333";
-      ctx.lineWidth = (selected ? 1.5 : 1) / grid.scale;
-      ctx.strokeRect(a, b, c, d);
+
+      if (selected) {
+        ctx.setLineDash([2]);
+        ctx.strokeStyle = "#eee";
+        ctx.lineWidth = 1.5 / grid.scale;
+        ctx.strokeRect(a, b, c, d);
+      } else {
+        ctx.strokeStyle = "#555";
+        ctx.strokeRect(a, b, c, d);
+      }
     }
 
     inputHandler.draw(ctx);

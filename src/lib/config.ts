@@ -1,3 +1,4 @@
+import { CellColor, type CellColorID } from "./grid";
 import { Store } from "./store";
 
 export type Config = {
@@ -6,8 +7,8 @@ export type Config = {
     allowForceMove: boolean;
   };
   paint: {
-    mode: "brush" | "fill";
-    color: string;
+    mode: "brush" | "fill" | "erase";
+    color: CellColorID;
   };
 };
 
@@ -29,7 +30,7 @@ export const createConfigStore = () =>
       },
       paint: {
         mode: "brush",
-        color: "green",
+        color: 0,
       },
     },
     reducer: (state: Config, action: ConfigActions) => {

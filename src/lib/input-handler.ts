@@ -1,5 +1,5 @@
 import type { Config } from "./config";
-import Grid, { type Pos } from "./grid";
+import Grid, { type CellColorID, type Pos } from "./grid";
 
 let minScale = 0.1;
 
@@ -43,10 +43,16 @@ export class MoveSelectHandler implements InputHandler {
   }
 
   onWheel(step: number) {
-    this.grid.scale -= step * 0.1;
+    const { mouse, grid } = this;
+    if (mouse.start || mouse.current) {
+      return false;
+    }
+
+    this.grid.scale -= step * 0.05;
     if (this.grid.scale < minScale) {
       this.grid.scale = minScale;
     }
+
     return true;
   }
 
@@ -79,7 +85,7 @@ export class MoveSelectHandler implements InputHandler {
     const [i, j] = grid.getCellAt(x, y);
     const cell = grid.getValue(i, j);
 
-    if (!cell) {
+    if (cell == null) {
       if (!mouse.shiftKey) grid.clearSelected();
       mouse.areaSelect = true;
       return true;
@@ -167,7 +173,7 @@ export class MoveSelectHandler implements InputHandler {
 
       if (!abort) {
         for (const [i, j, val] of selected) {
-          if (val) {
+          if (val != null) {
             grid.setValue(i + di, j + dj, val);
             grid.select(i + di, j + dj);
           }
@@ -211,7 +217,7 @@ export class MoveSelectHandler implements InputHandler {
         const [a, b, c, d] = grid.getBoundingRect(i + di, j + dj);
 
         const val = grid.getValue(i, j);
-        if (val) {
+        if (val != null) {
           ctx.fillStyle = "#0ff9";
           ctx.fillRect(a, b, c, d);
         }
@@ -235,7 +241,7 @@ export class InsertHandler implements InputHandler {
   constructor(public grid: Grid, public config: Config) {}
 
   onWheel(step: number): boolean {
-    this.grid.scale -= step * 0.1;
+    this.grid.scale -= step * 0.05;
     if (this.grid.scale < minScale) {
       this.grid.scale = minScale;
     }
@@ -256,9 +262,12 @@ export class InsertHandler implements InputHandler {
       return true;
     }
 
-    if (paint.mode == "brush") {
+    if (paint.mode == "erase") {
       const [i, j] = grid.getCellAt(x, y);
-      grid.setValue(i, j, 1);
+      grid.setValue(i, j, null);
+    } else if (paint.mode == "brush") {
+      const [i, j] = grid.getCellAt(x, y);
+      grid.setValue(i, j, this.config.paint.color);
     }
 
     return true;
@@ -281,15 +290,19 @@ export class InsertHandler implements InputHandler {
       return false;
     }
 
-    if (paint.mode == "brush") {
+    if (paint.mode == "erase") {
       const [i, j] = grid.getCellAt(x, y);
-      grid.setValue(i, j, 1);
+      grid.setValue(i, j, null);
+    } else if (paint.mode == "brush") {
+      const [i, j] = grid.getCellAt(x, y);
+      grid.setValue(i, j, this.config.paint.color);
     }
 
     return true;
   }
   onMouseUp(x: number, y: number, button: number): boolean {
-    const { mouse, grid } = this;
+    const { mouse, grid, config } = this;
+    const { paint } = config;
 
     if (!mouse.start || !mouse.current) return false;
     if (mouse.button != button) return false;
@@ -298,12 +311,56 @@ export class InsertHandler implements InputHandler {
       return false;
     }
 
+    if (paint.mode == "fill") {
+      const [si, sj] = grid.getCellAt(...mouse.start);
+      const [i, j] = grid.getCellAt(...mouse.current);
+      const startColor = grid.getValue(si, sj);
+      this.paintFill(startColor, config.paint.color, i, j);
+    }
+
     this.reset();
     return true;
   }
 
   update(): void {}
   draw(ctx: CanvasRenderingContext2D): void {}
+
+  paintFill(
+    findColor: CellColorID,
+    replaceWithColor: CellColorID,
+    si: number,
+    sj: number
+  ) {
+    const { grid, config } = this;
+
+    const visited = new Set<number>();
+    const queue: number[] = [si, sj];
+
+    asyncLoop(16, 30, () => {
+      const i = queue.shift();
+      const j = queue.shift();
+
+      if (i == null || j == null) return true;
+      if (i < 0 || j < 0) return true;
+      if (i >= grid.rows || j >= grid.cols) return true;
+
+      const ij = this.grid.posToInt(i, j);
+      if (visited.has(ij)) return true;
+      visited.add(ij);
+
+      const val = grid.getValue(i, j);
+      if (val != findColor) return true;
+
+      this.grid.setValue(i, j, replaceWithColor);
+
+      queue.push(i + 1, j + 0);
+      queue.push(i + 0, j + 1);
+      queue.push(i - 1, j + 0);
+      queue.push(i + 0, j - 1);
+
+      return true;
+    });
+  }
 
   private reset() {
     this.mouse.start = null;
@@ -337,4 +394,15 @@ export class NopHandler implements InputHandler {
   }
   update(): void {}
   draw(ctx: CanvasRenderingContext2D): void {}
+}
+
+function asyncLoop(batchSize: number, ms: number, fn: () => boolean) {
+  const id = setInterval(() => {
+    for (let i = 0; i < batchSize; i++) {
+      if (!fn()) {
+        clearInterval(id);
+        break;
+      }
+    }
+  }, ms);
 }

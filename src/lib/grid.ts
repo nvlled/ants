@@ -1,3 +1,27 @@
+// ABCDE
+// A - unused
+// B - unused
+// C - type
+// D - color (0-9)
+export type CellData = number;
+
+export type CellColorID = number;
+
+export const CellColor: Record<CellData, string> = [
+  "green",
+  "blue",
+  "red",
+  "yellow",
+  "cyan",
+  "#7a007a",
+] as const;
+
+export const CellType = {
+  static: 0,
+  langton: 1,
+  gol: 0,
+};
+
 export type Pos = [number, number];
 
 export class Grid {
@@ -13,7 +37,7 @@ export class Grid {
   rows = 0;
   cols = 0;
   selected: Set<number> = new Set();
-  data: number[] = [];
+  data: CellData[] = [];
 
   constructor(rows: number, cols: number, init?: [Pos, number][]) {
     this.rows = rows;
@@ -46,7 +70,7 @@ export class Grid {
 
   select(i: number, j: number) {
     const index = this.posToInt(i, j);
-    if (this.getValue(i, j)) {
+    if (this.getValue(i, j) != null) {
       this.selected.add(index);
     }
   }
