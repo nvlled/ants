@@ -1,0 +1,17 @@
+
+
+- copy paste, rotate
+- brush size and shape
+
+- fix buggy middle click
+  why is the origin being set to null/NaN
+  - alternatively, use a different input mode for
+  panning and scaling
+
+
+  
+- implement langton's ant
+
+- minimap
+
+it seems I can arrange perfect squares into perfect triangles as well?

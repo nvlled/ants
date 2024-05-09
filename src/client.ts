@@ -35,8 +35,9 @@ function main() {
   const bufferCanvas = document.createElement("canvas");
   const canvas = document.querySelector("canvas")!;
   const debug = document.querySelector("#debug");
+  const numSelected = document.querySelector("#selected-count");
 
-  if (!canvas || !debug) {
+  if (!canvas || !debug || !numSelected) {
     throw "missing nodes";
   }
 
@@ -107,6 +108,7 @@ function main() {
   document.addEventListener("mouseup", function (ev) {
     const [x, y] = getMousePos(ev);
     if (inputHandler.onMouseUp(x, y, ev.button)) {
+      numSelected.textContent = grid.selected.size + "";
       saveState();
     }
   });
@@ -119,6 +121,12 @@ function main() {
     bufferCanvas.width = canvas.width;
     bufferCanvas.height = canvas.height;
   });
+
+  window.addEventListener("keypress", function (e) {
+    inputHandler.onKeyPress(e);
+  });
+
+  (window as any).grid = grid;
 
   configStore.on(function (config) {
     insertHandler.config = config;
@@ -176,10 +184,12 @@ function main() {
       if (selected) {
         ctx.setLineDash([2]);
         ctx.strokeStyle = "#eee";
-        ctx.lineWidth = 1.5 / grid.scale;
+        ctx.lineWidth = 1.5;
         ctx.strokeRect(a, b, c, d);
       } else {
+        ctx.setLineDash([]);
         ctx.strokeStyle = "#555";
+        ctx.lineWidth = 1.0;
         ctx.strokeRect(a, b, c, d);
       }
     }
@@ -218,11 +228,3 @@ function main() {
 }
 
 main();
-
-// TODO: counters: show number of cells select
-// it seems I can arrange perfect squares into perfect triangles as well?
-
-// TODO: fill
-// TODO: copy and paste
-// TODO: rotate selection, paste
-// TODO: minimap

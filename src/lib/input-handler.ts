@@ -12,6 +12,8 @@ export const MouseButton = {
 export type MouseEventFlags = { shiftKey: boolean; ctrlKey: boolean };
 
 export interface InputHandler {
+  onKeyPress(ev: KeyboardEvent): boolean;
+
   onWheel(step: number): boolean;
   onMouseMove(x: number, y: number, dx: number, dy: number): boolean;
   onMouseDown(
@@ -37,9 +39,32 @@ export class MoveSelectHandler implements InputHandler {
     ctrlKey: false,
     areaSelect: false,
   };
+  key = {
+    shiftKey: false,
+    ctrlKey: false,
+  };
 
   constructor(grid: Grid) {
     this.grid = grid;
+  }
+
+  onKeyPress(e: KeyboardEvent) {
+    const { grid } = this;
+
+    this.key.shiftKey = e.shiftKey;
+    this.key.ctrlKey = e.ctrlKey;
+    console.log("keypressed", e.key);
+
+    switch (e.key) {
+      case "Delete": {
+        for (const [i, j] of grid.getAllSelected()) {
+          grid.setValue(i, j, null);
+        }
+        grid.clearSelected();
+      }
+    }
+
+    return false;
   }
 
   onWheel(step: number) {
@@ -240,6 +265,10 @@ export class InsertHandler implements InputHandler {
 
   constructor(public grid: Grid, public config: Config) {}
 
+  onKeyPress(ev: KeyboardEvent): boolean {
+    return false;
+  }
+
   onWheel(step: number): boolean {
     this.grid.scale -= step * 0.05;
     if (this.grid.scale < minScale) {
@@ -336,7 +365,8 @@ export class InsertHandler implements InputHandler {
     const visited = new Set<number>();
     const queue: number[] = [si, sj];
 
-    asyncLoop(16, 30, () => {
+    asyncLoop(4, 60, (o) => {
+      o.batchSize = queue.length / 4;
       const i = queue.shift();
       const j = queue.shift();
 
@@ -358,6 +388,11 @@ export class InsertHandler implements InputHandler {
       queue.push(i - 1, j + 0);
       queue.push(i + 0, j - 1);
 
+      //queue.push(i + 1, j + 1);
+      //queue.push(i + 1, j - 1);
+      //queue.push(i - 1, j + 1);
+      //queue.push(i - 1, j - 1);
+
       return true;
     });
   }
@@ -375,6 +410,9 @@ export class InsertHandler implements InputHandler {
 }
 
 export class NopHandler implements InputHandler {
+  onKeyPress(ev: KeyboardEvent): boolean {
+    return false;
+  }
   onWheel(step: number): boolean {
     return false;
   }
@@ -396,10 +434,15 @@ export class NopHandler implements InputHandler {
   draw(ctx: CanvasRenderingContext2D): void {}
 }
 
-function asyncLoop(batchSize: number, ms: number, fn: () => boolean) {
+function asyncLoop(
+  batchSize: number,
+  ms: number,
+  fn: (options: { batchSize: number }) => boolean
+) {
+  const options = { batchSize };
   const id = setInterval(() => {
-    for (let i = 0; i < batchSize; i++) {
-      if (!fn()) {
+    for (let i = 0; i < options.batchSize; i++) {
+      if (!fn(options)) {
         clearInterval(id);
         break;
       }

@@ -148,16 +148,18 @@ function PaintSettings() {
     .color-block.c5 {
       background: ${CellColor[5]};
     }
-    .color-block.c5 {
-      background: ${CellColor[5]};
+    .color-block.c6 {
+      background: ${CellColor[6]};
     }
 
     .color-block {
+      text-align: center;
       vertical-align: middle;
       display: inline-block;
       width: 30px;
       height: 30px;
       margin: 5px;
+      border: 1px solid white;
       cursor: pointer;
 
       &.selected {
@@ -198,6 +200,7 @@ function PaintSettings() {
           />
           fill
         </label>
+        {/*
         <span> </span>
         <label>
           <input
@@ -208,30 +211,48 @@ function PaintSettings() {
           />
           erase
         </label>
+        */}
       </div>
       <br />
       {paint.mode != "erase" && (
         <label>
           cell color:
-          {Object.entries(CellColor).map(([i, c]) => (
-            <div
-              key={i + c}
-              className={
-                "color-block c" +
-                i +
-                (paint.color == parseInt(i, 10) ? " selected" : "")
-              }
-              onClick={() =>
-                store.dispatch({
-                  type: "updatePaint",
-                  data: {
-                    ...paint,
-                    color: parseInt(i, 10),
-                  },
-                })
-              }
-            ></div>
-          ))}
+          {Object.entries(CellColor).map(
+            ([i, c]) =>
+              parseInt(i, 10) >= 0 && (
+                <div
+                  key={i + c}
+                  className={
+                    "color-block c" +
+                    i +
+                    (paint.color == parseInt(i, 10) ? " selected" : "")
+                  }
+                  onClick={() =>
+                    store.dispatch({
+                      type: "updatePaint",
+                      data: {
+                        ...paint,
+                        color: parseInt(i, 10),
+                      },
+                    })
+                  }
+                ></div>
+              )
+          )}
+          <div
+            className={"color-block " + (paint.color == -1 ? " selected" : "")}
+            onClick={() =>
+              store.dispatch({
+                type: "updatePaint",
+                data: {
+                  ...paint,
+                  color: -1,
+                },
+              })
+            }
+          >
+            -
+          </div>
         </label>
       )}
     </div>

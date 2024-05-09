@@ -16,6 +16,8 @@ export const CellColor: Record<CellData, string> = [
   "#7a007a",
 ] as const;
 
+CellColor[-1] = "x";
+
 export const CellType = {
   static: 0,
   langton: 1,
@@ -106,6 +108,8 @@ export class Grid {
   }
 
   setValue(i: number, j: number, val: number | null) {
+    if (val && val < 0) val = null;
+
     const index = i * this.cols + j;
     if (val == null) delete this.data[index];
     else this.data[index] = val;
