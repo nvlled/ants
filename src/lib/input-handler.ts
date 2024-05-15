@@ -1,8 +1,6 @@
 import type { Config } from "./config";
 import Grid, { type CellColorID, type Pos } from "./grid";
 
-let minScale = 0.1;
-
 export const MouseButton = {
   left: 0,
   middle: 1,
@@ -28,39 +26,108 @@ export interface InputHandler {
   draw(ctx: CanvasRenderingContext2D): void;
 }
 
+type Clipboard = {
+  ref: [number, number];
+  cells: ClipboardEntry[];
+};
+
+type ClipboardEntry = {
+  di: number;
+  dj: number;
+  value: number;
+};
+
 export class MoveSelectHandler implements InputHandler {
-  grid: Grid;
+  transform: GridTransform;
+
   mouse = {
     start: null as Pos | null,
     current: null as Pos | null,
+    hover: null as Pos | null,
     button: -1,
     drag: false,
     shiftKey: false,
     ctrlKey: false,
     areaSelect: false,
   };
+
   key = {
     shiftKey: false,
     ctrlKey: false,
   };
 
-  constructor(grid: Grid) {
-    this.grid = grid;
+  pasting = false;
+  clipboard: Clipboard = {
+    ref: [0, 0],
+    cells: [],
+  };
+
+  constructor(public grid: Grid) {
+    this.transform = new GridTransform(grid);
   }
 
   onKeyPress(e: KeyboardEvent) {
-    const { grid } = this;
+    const { grid, transform } = this;
 
     this.key.shiftKey = e.shiftKey;
     this.key.ctrlKey = e.ctrlKey;
-    console.log("keypressed", e.key);
 
     switch (e.key) {
+      case "Escape": {
+        this.pasting = false;
+        this.reset();
+        break;
+      }
+
       case "Delete": {
         for (const [i, j] of grid.getAllSelected()) {
           grid.setValue(i, j, null);
         }
         grid.clearSelected();
+        break;
+      }
+
+      case "q":
+        transform.zoomOut();
+        break;
+      case "e":
+        transform.zoomIn();
+        break;
+
+      case "w":
+        transform.move(0, -50);
+        break;
+      case "s":
+        transform.move(0, 50);
+        break;
+      case "a":
+        transform.move(-50, 0);
+        break;
+      case "d":
+        transform.move(50, 0);
+        break;
+
+      case "x": {
+        this.copySelected();
+        for (const [i, j] of grid.getAllSelected()) {
+          grid.setValue(i, j, null);
+        }
+        grid.clearSelected();
+        break;
+      }
+
+      case "c": {
+        if (e.ctrlKey) {
+          this.copySelected();
+          grid.clearSelected();
+        }
+        break;
+      }
+      case "v": {
+        if (this.clipboard.cells.length > 0) {
+          this.pasting = true;
+        }
+        break;
       }
     }
 
@@ -68,42 +135,39 @@ export class MoveSelectHandler implements InputHandler {
   }
 
   onWheel(step: number) {
-    const { mouse, grid } = this;
-    if (mouse.start || mouse.current) {
-      return false;
-    }
-
-    this.grid.scale -= step * 0.05;
-    if (this.grid.scale < minScale) {
-      this.grid.scale = minScale;
-    }
-
-    return true;
+    return false;
   }
 
   onMouseMove(x: number, y: number, dx: number, dy: number) {
-    const { mouse, grid } = this;
+    const { mouse, clipboard } = this;
+    mouse.hover = [x, y];
+
     if (!mouse.start || !mouse.current) {
       return false;
     }
     mouse.current = [x, y];
 
-    if (mouse.button == MouseButton.middle) {
-      grid.origin.x -= dx / grid.scale;
-      grid.origin.y -= dy / grid.scale;
+    if (mouse.button === MouseButton.right) {
+      this.transform.move(-dx, -dy);
     }
     return true;
   }
 
   onMouseDown(x: number, y: number, button: number, flags: MouseEventFlags) {
-    const { mouse, grid } = this;
-    mouse.start = [x, y];
-    mouse.current = [x, y];
+    const { mouse, grid, clipboard } = this;
+
     mouse.button = button;
     mouse.shiftKey = flags.shiftKey;
     mouse.ctrlKey = flags.ctrlKey;
 
-    if (button == MouseButton.middle) {
+    if (mouse.hover && clipboard.cells.length && this.pasting) {
+      return false;
+    }
+
+    mouse.start = [x, y];
+    mouse.current = [x, y];
+
+    if (button == MouseButton.middle || button === MouseButton.right) {
       return false;
     }
 
@@ -157,18 +221,35 @@ export class MoveSelectHandler implements InputHandler {
   }
 
   onMouseUp(x: number, y: number, button: number) {
-    const { mouse, grid } = this;
+    console.log("mouse up");
+    const { mouse, grid, clipboard } = this;
+
+    if (mouse.hover && clipboard.cells.length && this.pasting) {
+      if (mouse.button === MouseButton.left) {
+        grid.clearSelected();
+        const [ei, ej] = grid.getCellAt(...mouse.hover);
+        for (const e of this.clipboard.cells) {
+          const [di, dj] = [ei + e.di, ej + e.dj];
+          grid.setValue(di, dj, e.value);
+        }
+        this.pasting = false;
+      }
+      return true;
+    }
 
     if (!mouse.start || !mouse.current) return false;
     if (mouse.button != button) return false;
-    if (mouse.button == MouseButton.middle) {
+
+    if (
+      mouse.button == MouseButton.middle ||
+      mouse.button === MouseButton.right
+    ) {
       this.reset();
       return false;
     }
 
     const [i, j] = grid.getCellAt(x, y);
     const [sx, sy] = mouse.start;
-    const cell = grid.getValue(i, j);
 
     if (mouse.areaSelect) {
       for (const elem of grid.getCellsAt(sx, sy, x, y)) {
@@ -213,18 +294,67 @@ export class MoveSelectHandler implements InputHandler {
   private reset() {
     this.mouse.start = null;
     this.mouse.current = null;
+    this.mouse.hover = null;
     this.mouse.ctrlKey = false;
     this.mouse.shiftKey = false;
     this.mouse.button = -1;
     this.mouse.areaSelect = false;
   }
 
+  copySelected() {
+    const { grid, clipboard } = this;
+
+    clipboard.cells.splice(0);
+
+    let min = Infinity;
+    for (const index of grid.selected) {
+      const [i, j] = grid.intToPos(index);
+      if (i + j < min) {
+        min = i + j;
+        clipboard.ref[0] = i;
+        clipboard.ref[1] = j;
+      }
+    }
+
+    const [si, sj] = clipboard.ref;
+    for (const [i, j] of grid.getAllSelected()) {
+      const [di, dj] = [i - si, j - sj];
+      clipboard.cells.push({
+        di,
+        dj,
+        value: grid.getValue(i, j),
+      });
+    }
+
+    console.log(clipboard);
+  }
+
   update() {}
+
   draw(ctx: CanvasRenderingContext2D): void {
     const { mouse, grid } = this;
 
-    if (!mouse.start || !mouse.current || mouse.button == MouseButton.middle)
+    if (this.clipboard.cells.length > 0 && mouse.hover && this.pasting) {
+      const [ei, ej] = grid.getCellAt(...mouse.hover);
+      for (const e of this.clipboard.cells) {
+        const [i, j] = [ei + e.di, ej + e.dj];
+        const [a, b, c, d] = grid.getBoundingRect(i, j);
+        ctx.fillStyle = "#0ff5";
+        ctx.fillRect(a, b, c, d);
+      }
       return;
+    }
+
+    if (!mouse.start || !mouse.current) {
+      return;
+    }
+
+    if (
+      mouse.button == MouseButton.middle ||
+      mouse.button == MouseButton.right
+    ) {
+      return;
+    }
 
     const [sx, sy] = mouse.start;
     const [x, y] = mouse.current;
@@ -252,6 +382,8 @@ export class MoveSelectHandler implements InputHandler {
 }
 
 export class InsertHandler implements InputHandler {
+  transform: GridTransform;
+
   mouse = {
     start: null as Pos | null,
     current: null as Pos | null,
@@ -263,19 +395,50 @@ export class InsertHandler implements InputHandler {
     clickNum: 0,
   };
 
-  constructor(public grid: Grid, public config: Config) {}
+  key = {
+    shiftKey: false,
+    ctrlKey: false,
+  };
 
-  onKeyPress(ev: KeyboardEvent): boolean {
+  constructor(public grid: Grid, public config: Config) {
+    this.transform = new GridTransform(grid);
+  }
+
+  onKeyPress(e: KeyboardEvent): boolean {
+    const { grid, transform } = this;
+
+    this.key.shiftKey = e.shiftKey;
+    this.key.ctrlKey = e.ctrlKey;
+
+    switch (e.key) {
+      case "q":
+        transform.zoomOut();
+        break;
+      case "e":
+        transform.zoomIn();
+        break;
+
+      case "w":
+        transform.move(0, -50);
+        break;
+      case "s":
+        transform.move(0, 50);
+        break;
+      case "a":
+        transform.move(-50, 0);
+        break;
+      case "d":
+        transform.move(50, 0);
+        break;
+    }
+
     return false;
   }
 
   onWheel(step: number): boolean {
-    this.grid.scale -= step * 0.05;
-    if (this.grid.scale < minScale) {
-      this.grid.scale = minScale;
-    }
-    return true;
+    return false;
   }
+
   onMouseMove(x: number, y: number, dx: number, dy: number): boolean {
     const { mouse, grid, config } = this;
     const { paint } = config;
@@ -285,9 +448,8 @@ export class InsertHandler implements InputHandler {
     }
     mouse.current = [x, y];
 
-    if (mouse.button == MouseButton.middle) {
-      grid.origin.x -= dx / grid.scale;
-      grid.origin.y -= dy / grid.scale;
+    if (mouse.button === MouseButton.right) {
+      this.transform.move(-dx, -dy);
       return true;
     }
 
@@ -315,7 +477,7 @@ export class InsertHandler implements InputHandler {
     mouse.shiftKey = flags.shiftKey;
     mouse.ctrlKey = flags.ctrlKey;
 
-    if (button == MouseButton.middle) {
+    if (button == MouseButton.middle || button === MouseButton.right) {
       return false;
     }
 
@@ -329,13 +491,18 @@ export class InsertHandler implements InputHandler {
 
     return true;
   }
+
   onMouseUp(x: number, y: number, button: number): boolean {
     const { mouse, grid, config } = this;
     const { paint } = config;
 
     if (!mouse.start || !mouse.current) return false;
     if (mouse.button != button) return false;
-    if (mouse.button == MouseButton.middle) {
+
+    if (
+      mouse.button == MouseButton.middle ||
+      mouse.button === MouseButton.right
+    ) {
       this.reset();
       return false;
     }
@@ -448,4 +615,32 @@ function asyncLoop(
       }
     }
   }, ms);
+}
+
+class GridTransform {
+  minScale = 0.1;
+  scaleStep = 10;
+  constructor(public grid: Grid) {}
+
+  zoomIn() {
+    this.grid.scale += 1 * 0.01;
+    if (this.grid.scale < this.minScale) {
+      this.grid.scale = this.minScale;
+    }
+    this.grid.origin.x -= this.grid.scale;
+    this.grid.origin.y -= this.grid.scale;
+  }
+  zoomOut() {
+    this.grid.scale -= 1 * 0.01;
+    if (this.grid.scale < this.minScale) {
+      this.grid.scale = this.minScale;
+    }
+    this.grid.origin.x -= this.grid.scale;
+    this.grid.origin.y -= this.grid.scale;
+  }
+
+  move(dx: number, dy: number) {
+    this.grid.origin.x += dx / this.grid.scale;
+    this.grid.origin.y += dy / this.grid.scale;
+  }
 }

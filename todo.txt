@@ -1,16 +1,17 @@
 
 
-- copy paste, rotate
+- rotate
 - brush size and shape
 
-- fix buggy middle click
-  why is the origin being set to null/NaN
-  - alternatively, use a different input mode for
-  panning and scaling
+- keybinds to change settings
 
-
-  
 - implement langton's ant
+  - when there are selected cells,
+    show select menu to set cell type
+
+
+- pause button
+- step button
 
 - minimap
 

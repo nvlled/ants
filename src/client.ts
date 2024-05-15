@@ -105,6 +105,10 @@ function main() {
     }
   };
 
+  canvas.oncontextmenu = function (e) {
+    e.preventDefault();
+  };
+
   document.addEventListener("mouseup", function (ev) {
     const [x, y] = getMousePos(ev);
     if (inputHandler.onMouseUp(x, y, ev.button)) {
@@ -122,7 +126,8 @@ function main() {
     bufferCanvas.height = canvas.height;
   });
 
-  window.addEventListener("keypress", function (e) {
+  window.addEventListener("keydown", function (e) {
+    console.log("e", e.ctrlKey, e.code, e.key);
     inputHandler.onKeyPress(e);
   });
 
@@ -182,9 +187,9 @@ function main() {
       }
 
       if (selected) {
-        ctx.setLineDash([2]);
-        ctx.strokeStyle = "#eee";
-        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5]);
+        ctx.strokeStyle = "orange";
+        ctx.lineWidth = 4.0;
         ctx.strokeRect(a, b, c, d);
       } else {
         ctx.setLineDash([]);

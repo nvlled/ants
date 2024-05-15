@@ -93,7 +93,7 @@ Settings.css = css`
   position: fixed;
   top: 0;
   left: 0;
-  width: 480px;
+  width: 380px;
   height: 100vh;
   color: white;
   padding: 10px;
@@ -352,6 +352,11 @@ function MoveSelectSettings() {
               shift+click another cell
             </td>
             <td>select rectangle area</td>
+          </tr>
+
+          <tr>
+            <td>ctrl+x</td>
+            <td>cut selected cells</td>
           </tr>
 
           <tr>

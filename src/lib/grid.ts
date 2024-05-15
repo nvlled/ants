@@ -109,6 +109,9 @@ export class Grid {
 
   setValue(i: number, j: number, val: number | null) {
     if (val && val < 0) val = null;
+    if (i > this.rows || j > this.cols || i < 0 || j < 0) {
+      return;
+    }
 
     const index = i * this.cols + j;
     if (val == null) delete this.data[index];
