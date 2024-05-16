@@ -1,4 +1,9 @@
-import Grid, { type Pos, GridStateLoader, CellColor } from "./lib/grid";
+import Grid, {
+  type Pos,
+  GridStateLoader,
+  CellColor,
+  GridObserver,
+} from "./lib/grid";
 import { createRoot } from "react-dom/client";
 import { Settings, mountSettings } from "./lib/settings";
 import { throttle } from "./lib/throttle";
@@ -30,14 +35,11 @@ function main() {
     localStorage.setItem("config", JSON.stringify(config));
   });
 
-  mountSettings(configStore, sidebar);
-
   const bufferCanvas = document.createElement("canvas");
   const canvas = document.querySelector("canvas")!;
   const debug = document.querySelector("#debug");
-  const numSelected = document.querySelector("#selected-count");
 
-  if (!canvas || !debug || !numSelected) {
+  if (!canvas || !debug) {
     throw "missing nodes";
   }
 
@@ -79,6 +81,8 @@ function main() {
   updateInputHandler(configStore.current);
   updateCanvasCursor(configStore.current);
 
+  mountSettings(configStore, grid.observer, sidebar);
+
   canvas.onwheel = function (e) {
     e.preventDefault();
     const n = Math.abs(e.deltaY) / e.deltaY;
@@ -112,7 +116,6 @@ function main() {
   document.addEventListener("mouseup", function (ev) {
     const [x, y] = getMousePos(ev);
     if (inputHandler.onMouseUp(x, y, ev.button)) {
-      numSelected.textContent = grid.selected.size + "";
       saveState();
     }
   });

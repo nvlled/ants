@@ -1,3 +1,5 @@
+import sample from "./grid-sample";
+
 // ABCDE
 // A - unused
 // B - unused
@@ -8,12 +10,12 @@ export type CellData = number;
 export type CellColorID = number;
 
 export const CellColor: Record<CellData, string> = [
-  "green",
-  "blue",
+  "#0f0",
+  "#00f",
   "red",
   "yellow",
   "cyan",
-  "#7a007a",
+  "#af00af",
 ] as const;
 
 CellColor[-1] = "x";
@@ -26,11 +28,49 @@ export const CellType = {
 
 export type Pos = [number, number];
 
+export type PartialGridState = {
+  origin: { x: number; y: number };
+  scale: number;
+  numSelected: number;
+};
+
+export type GridObserverListener = (state: PartialGridState) => void;
+
+export class GridObserver {
+  #listeners = new Set<GridObserverListener>();
+  id = 0;
+
+  constructor(public grid: Grid) {
+    this.id = ++GridObserver.idgen;
+  }
+
+  update() {
+    const state = this.current;
+    for (const fn of this.#listeners) {
+      fn(state);
+    }
+  }
+
+  get current(): PartialGridState {
+    return {
+      origin: { ...this.grid.origin },
+      scale: this.grid.scale,
+      numSelected: this.grid.selected.size,
+    };
+  }
+
+  on(fn: GridObserverListener) {
+    this.#listeners.add(fn);
+  }
+  off(fn: GridObserverListener) {
+    this.#listeners.delete(fn);
+  }
+
+  static idgen = 0;
+}
+
 export class Grid {
   pos = { x: 0, y: 0 };
-
-  scale = 1;
-  origin = { x: 0, y: 0 };
 
   display = {
     margin: 2,
@@ -41,9 +81,30 @@ export class Grid {
   selected: Set<number> = new Set();
   data: CellData[] = [];
 
+  observer: GridObserver;
+
+  #scale = 1;
+  #origin = { x: 0, y: 0 };
+
+  get scale() {
+    return this.#scale;
+  }
+  set scale(value) {
+    this.#scale = value;
+    this.observer.update();
+  }
+  get origin() {
+    return this.#origin;
+  }
+  set origin(value) {
+    this.#origin = value;
+    this.observer.update();
+  }
+
   constructor(rows: number, cols: number, init?: [Pos, number][]) {
     this.rows = rows;
     this.cols = cols;
+    this.observer = new GridObserver(this);
 
     if (init) {
       init.forEach(([pos, val]) => {
@@ -75,11 +136,13 @@ export class Grid {
     if (this.getValue(i, j) != null) {
       this.selected.add(index);
     }
+    this.observer.update();
   }
 
   deselect(i: number, j: number) {
     const index = this.posToInt(i, j);
     this.selected.delete(index);
+    this.observer.update();
   }
 
   isSelected(i: number, j: number) {
@@ -94,6 +157,7 @@ export class Grid {
     for (const index of this.selected) {
       this.selected.delete(index);
     }
+    this.observer.update();
   }
 
   *getAllSelected() {
@@ -181,6 +245,7 @@ export class GridStateLoader {
     try {
       state = JSON.parse(localStorage.getItem(lsKey) ?? "") as GridData;
     } catch (e) {
+      state = sample as GridData;
       console.log(e);
     }
     if (state) {

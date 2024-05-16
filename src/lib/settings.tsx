@@ -17,28 +17,48 @@ import {
   type ConfigStore,
   type Mode,
 } from "./config";
-import { CellColor } from "./grid";
+import { CellColor, GridObserver, type PartialGridState } from "./grid";
 
 const store = createConfigStore();
 const ConfigContext = createContext<Config>(store.current);
 const StoreContext = createContext<ConfigStore>(store);
+const GridContext = createContext<PartialGridState>({
+  numSelected: 0,
+  origin: { x: 0, y: 0 },
+  scale: 1,
+});
 
 export type SettingsProviderProps = {
   config: Config;
   store: Store<Config, ConfigActions>;
+  grid: PartialGridState;
   children: ReactNode;
 };
-function SettingsProvider({ config, store, children }: SettingsProviderProps) {
+function SettingsProvider({
+  config,
+  store,
+  grid,
+  children,
+}: SettingsProviderProps) {
   return (
     <ConfigContext.Provider value={config}>
-      <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
+      <StoreContext.Provider value={store}>
+        <GridContext.Provider value={grid}>{children}</GridContext.Provider>
+      </StoreContext.Provider>
     </ConfigContext.Provider>
   );
 }
 
-export function Settings({ store }: { store: ConfigStore }) {
+export function Settings({
+  store,
+  gridObserver,
+}: {
+  store: ConfigStore;
+  gridObserver: GridObserver;
+}) {
   const [hidden, setHidden] = useState(false);
   const [config, setConfig] = useState(store.current);
+  const [grid, setGrid] = useState<PartialGridState>(gridObserver.current);
 
   useEffect(() => {
     const fn = (data: Config) => {
@@ -47,6 +67,14 @@ export function Settings({ store }: { store: ConfigStore }) {
     store.on(fn);
     return () => store.off(fn);
   }, [store, config]);
+
+  useEffect(() => {
+    const fn = (grid: PartialGridState) => {
+      setGrid(grid);
+    };
+    gridObserver.on(fn);
+    return () => gridObserver.off(fn);
+  }, []);
 
   function handleModeChange(e: ChangeEvent<HTMLSelectElement>) {
     const mode = e.target.value as Mode;
@@ -59,7 +87,8 @@ export function Settings({ store }: { store: ConfigStore }) {
   useCSS(Settings, { scope: "#sidebar" });
 
   return (
-    <SettingsProvider config={config} store={store}>
+    <SettingsProvider config={config} store={store} grid={grid}>
+      <StatusBar />
       <div id="sidebar" className={hidden ? "hidden" : ""}>
         <div id="top">
           <select value={config.mode} onChange={handleModeChange}>
@@ -71,17 +100,14 @@ export function Settings({ store }: { store: ConfigStore }) {
           </button>
         </div>
         <br />
-        {!hidden &&
-          (config.mode === "movesel" ? (
-            <MoveSelectSettings />
-          ) : config.mode === "paint" ? (
-            <PaintSettings />
-          ) : null)}
-        {/*
-      <MoveSelectSettings />
-      <hr />
-      <PaintSettings />
-    */}
+        <div id="settings-body">
+          {!hidden &&
+            (config.mode === "movesel" ? (
+              <MoveSelectSettings />
+            ) : config.mode === "paint" ? (
+              <PaintSettings />
+            ) : null)}
+        </div>
       </div>
     </SettingsProvider>
   );
@@ -97,6 +123,8 @@ Settings.css = css`
   height: 100vh;
   color: white;
   padding: 10px;
+
+  z-index: 10;
 
   &.hidden {
     overflow: hidden;
@@ -121,12 +149,60 @@ Settings.css = css`
   }
 `;
 
+function StatusBar() {
+  const config = useContext(ConfigContext);
+  const grid = useContext(GridContext);
+
+  const css = useCSS(StatusBar, { scope: "#status-bar" });
+  css`
+    position: fixed;
+    background: #333;
+    top: 0;
+    width: 100vw;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    #mode {
+      margin-right: 5px;
+    }
+
+    .color-block {
+      text-align: center;
+      vertical-align: middle;
+      display: inline-block;
+      width: 15px;
+      height: 15px;
+      border: 1px solid gray;
+      margin-right: 5px;
+    }
+  `;
+
+  return (
+    <div id="status-bar">
+      <div id="mode">
+        {config.mode === "movesel" ? "select & move" : config.mode}:
+      </div>
+      {config.mode === "movesel" ? (
+        <>{grid.numSelected}</>
+      ) : config.mode === "paint" ? (
+        <>
+          <span
+            className="color-block"
+            style={{ background: CellColor[config.paint.color] }}
+          />
+          {config.paint.mode}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 function PaintSettings() {
   const config = useContext(ConfigContext);
   const store = useContext(StoreContext);
   const paint = config.paint;
-
-  const s = `${config.mode}`;
 
   const css = useCSS(PaintSettings, { scope: "#paint" });
   css`
@@ -379,6 +455,12 @@ function MoveSelectSettings() {
   );
 }
 
-export function mountSettings(store: ConfigStore, root: Element) {
-  createRoot(root).render(<Settings store={store} />);
+export function mountSettings(
+  store: ConfigStore,
+  gridObserver: GridObserver,
+  root: Element
+) {
+  createRoot(root).render(
+    <Settings store={store} gridObserver={gridObserver} />
+  );
 }
