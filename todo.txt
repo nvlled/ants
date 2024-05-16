@@ -1,7 +1,6 @@
 
+- disallow moving into cells
 
-- rotate
-- brush size and shape
 
 - keybinds to change settings
 
@@ -14,5 +13,7 @@
 - step button
 
 - minimap
+
+- brush size and shape
 
 it seems I can arrange perfect squares into perfect triangles as well?

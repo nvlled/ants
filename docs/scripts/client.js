@@ -24300,11 +24300,15 @@ class MoveSelectHandler {
     shiftKey: false,
     ctrlKey: false
   };
-  pasting = false;
-  clipboard = {
+  copiedCells = {
     ref: [0, 0],
-    cells: []
+    data: []
   };
+  draggedCells = {
+    ref: [0, 0],
+    data: []
+  };
+  state = "nop";
   constructor(grid2) {
     this.grid = grid2;
     this.transform = new GridTransform(grid2);
@@ -24315,7 +24319,7 @@ class MoveSelectHandler {
     this.key.ctrlKey = e.ctrlKey;
     switch (e.key) {
       case "Escape": {
-        this.pasting = false;
+        this.state = "nop";
         this.reset();
         break;
       }
@@ -24345,7 +24349,7 @@ class MoveSelectHandler {
         transform.move(50, 0);
         break;
       case "x": {
-        this.copySelected();
+        this.copySelected(this.copiedCells);
         for (const [i, j] of grid2.getAllSelected()) {
           grid2.setValue(i, j, null);
         }
@@ -24354,16 +24358,27 @@ class MoveSelectHandler {
       }
       case "c": {
         if (e.ctrlKey) {
-          this.copySelected();
+          this.copySelected(this.copiedCells);
           grid2.clearSelected();
         }
         break;
       }
       case "v": {
-        if (this.clipboard.cells.length > 0) {
-          this.pasting = true;
+        if (this.copiedCells.data.length > 0) {
+          this.state = "pasting";
         }
         break;
+      }
+      case "r": {
+        if (this.state === "pasting") {
+          for (const e2 of this.copiedCells.data) {
+            [e2.di, e2.dj] = [e2.dj, -e2.di];
+          }
+        } else if (this.state === "moving") {
+          for (const e2 of this.draggedCells.data) {
+            [e2.di, e2.dj] = [e2.dj, -e2.di];
+          }
+        }
       }
     }
     return false;
@@ -24372,7 +24387,7 @@ class MoveSelectHandler {
     return false;
   }
   onMouseMove(x, y, dx, dy) {
-    const { mouse, clipboard } = this;
+    const { mouse, state, grid: grid2 } = this;
     mouse.hover = [x, y];
     if (!mouse.start || !mouse.current) {
       return false;
@@ -24381,14 +24396,19 @@ class MoveSelectHandler {
     if (mouse.button === MouseButton.right) {
       this.transform.move(-dx, -dy);
     }
+    const [i, j] = grid2.getCellAt(x, y);
+    if (mouse.button === MouseButton.left && state === "nop" && grid2.selected.size > 0 && grid2.getValue(i, j) != null) {
+      this.state = "moving";
+      this.copySelected(this.draggedCells, grid2.posToInt(i, j));
+    }
     return true;
   }
   onMouseDown(x, y, button, flags) {
-    const { mouse, grid: grid2, clipboard } = this;
+    const { mouse, grid: grid2, copiedCells } = this;
     mouse.button = button;
     mouse.shiftKey = flags.shiftKey;
     mouse.ctrlKey = flags.ctrlKey;
-    if (mouse.hover && clipboard.cells.length && this.pasting) {
+    if (mouse.hover && copiedCells.data.length && this.state === "pasting") {
       return false;
     }
     mouse.start = [x, y];
@@ -24443,16 +24463,16 @@ class MoveSelectHandler {
   }
   onMouseUp(x, y, button) {
     console.log("mouse up");
-    const { mouse, grid: grid2, clipboard } = this;
-    if (mouse.hover && clipboard.cells.length && this.pasting) {
+    const { mouse, grid: grid2 } = this;
+    if (mouse.hover && this.copiedCells.data.length && this.state === "pasting") {
       if (mouse.button === MouseButton.left) {
         grid2.clearSelected();
         const [ei, ej] = grid2.getCellAt(...mouse.hover);
-        for (const e of this.clipboard.cells) {
-          const [di2, dj2] = [ei + e.di, ej + e.dj];
-          grid2.setValue(di2, dj2, e.value);
+        for (const e of this.copiedCells.data) {
+          const [di, dj] = [ei + e.di, ej + e.dj];
+          grid2.setValue(di, dj, e.value);
         }
-        this.pasting = false;
+        this.state = "nop";
       }
       return true;
     }
@@ -24473,30 +24493,22 @@ class MoveSelectHandler {
       this.reset();
       return true;
     }
-    let [i1, j1] = grid2.getCellAt(...mouse.start);
-    let [i2, j2] = grid2.getCellAt(...mouse.current);
-    let [di, dj] = [i2 - i1, j2 - j1];
-    if (di != 0 || dj != 0) {
-      const selected = [];
-      let abort = false;
-      for (let [i3, j3] of grid2.getAllSelected()) {
-        [i2, j2] = [i3 + di, j3 + dj];
-        if (i2 < 0 || j2 < 0 || i2 >= grid2.rows || j2 >= grid2.cols) {
-          abort = true;
-          break;
-        }
-        selected.push([i3, j3, grid2.getValue(i3, j3)]);
-        grid2.deselect(i3, j3);
-        grid2.setValue(i3, j3, null);
+    if (this.state === "moving") {
+      const [ei, ej] = grid2.getCellAt(...mouse.current);
+      for (const [i2, j2] of grid2.getAllSelected()) {
+        grid2.setValue(i2, j2, null);
       }
-      if (!abort) {
-        for (const [i3, j3, val] of selected) {
-          if (val != null) {
-            grid2.setValue(i3 + di, j3 + dj, val);
-            grid2.select(i3 + di, j3 + dj);
-          }
-        }
+      grid2.clearSelected();
+      for (const e of this.draggedCells.data) {
+        const [i2, j2] = [ei + e.di, ej + e.dj];
+        grid2.setValue(i2, j2, e.value);
+        grid2.select(i2, j2);
       }
+      this.state = "nop";
+      this.draggedCells.data.splice(0);
+      this.draggedCells.ref = [0, 0];
+      this.reset();
+      return true;
     }
     this.reset();
     return true;
@@ -24510,36 +24522,44 @@ class MoveSelectHandler {
     this.mouse.button = -1;
     this.mouse.areaSelect = false;
   }
-  copySelected() {
-    const { grid: grid2, clipboard } = this;
-    clipboard.cells.splice(0);
-    let min = Infinity;
-    for (const index of grid2.selected) {
-      const [i, j] = grid2.intToPos(index);
-      if (i + j < min) {
-        min = i + j;
-        clipboard.ref[0] = i;
-        clipboard.ref[1] = j;
-      }
+  copySelected(destination, refIndex) {
+    const { grid: grid2 } = this;
+    destination.data.splice(0);
+    if (refIndex != null) {
+      destination.ref = grid2.intToPos(refIndex);
+    } else {
+      let temp = [];
+      for (const e of grid2.selected)
+        temp.push(e);
+      temp.sort((a, b) => {
+        const [ai, aj] = grid2.intToPos(a);
+        const [bi, bj] = grid2.intToPos(b);
+        return ai + aj - bi + bj;
+      });
+      const start = temp[0];
+      const end = temp[temp.length - 1];
+      const [si2, sj2] = grid2.intToPos(start);
+      const [ei, ej] = grid2.intToPos(end);
+      destination.ref[0] = si2 + Math.floor((ei - si2) / 2);
+      destination.ref[1] = sj2 + Math.floor((ej - sj2) / 2);
     }
-    const [si, sj] = clipboard.ref;
+    const [si, sj] = destination.ref;
     for (const [i, j] of grid2.getAllSelected()) {
       const [di, dj] = [i - si, j - sj];
-      clipboard.cells.push({
+      destination.data.push({
         di,
         dj,
         value: grid2.getValue(i, j)
       });
     }
-    console.log(clipboard);
   }
   update() {
   }
   draw(ctx) {
     const { mouse, grid: grid2 } = this;
-    if (this.clipboard.cells.length > 0 && mouse.hover && this.pasting) {
+    if (this.copiedCells.data.length > 0 && mouse.hover && this.state === "pasting") {
       const [ei, ej] = grid2.getCellAt(...mouse.hover);
-      for (const e of this.clipboard.cells) {
+      for (const e of this.copiedCells.data) {
         const [i, j] = [ei + e.di, ej + e.dj];
         const [a, b, c, d] = grid2.getBoundingRect(i, j);
         ctx.fillStyle = "#0ff5";
@@ -24553,6 +24573,16 @@ class MoveSelectHandler {
     if (mouse.button == MouseButton.middle || mouse.button == MouseButton.right) {
       return;
     }
+    if (this.draggedCells.data.length > 0 && mouse.current && this.state === "moving") {
+      const [ei, ej] = grid2.getCellAt(...mouse.current);
+      for (const e of this.draggedCells.data) {
+        const [i, j] = [ei + e.di, ej + e.dj];
+        const [a, b, c, d] = grid2.getBoundingRect(i, j);
+        ctx.fillStyle = "#f005";
+        ctx.fillRect(a, b, c, d);
+      }
+      return;
+    }
     const [sx, sy] = mouse.start;
     const [x, y] = mouse.current;
     if (mouse.areaSelect) {
@@ -24560,18 +24590,6 @@ class MoveSelectHandler {
       const h = y - sy;
       ctx.fillStyle = "#0ff7";
       ctx.fillRect(sx, sy, w, h);
-    } else if (sx != x || sy != y) {
-      const [i1, j1] = grid2.getCellAt(...mouse.start);
-      const [i2, j2] = grid2.getCellAt(...mouse.current);
-      const [di, dj] = [i2 - i1, j2 - j1];
-      for (const [i, j] of grid2.getAllSelected()) {
-        const [a, b, c, d] = grid2.getBoundingRect(i + di, j + dj);
-        const val = grid2.getValue(i, j);
-        if (val != null) {
-          ctx.fillStyle = "#0ff9";
-          ctx.fillRect(a, b, c, d);
-        }
-      }
     }
   }
 }
@@ -24925,9 +24943,12 @@ var main = function() {
         ctx.fillRect(a, b, c, d);
       }
       if (selected) {
-        ctx.setLineDash([5]);
+        ctx.setLineDash([2, 4]);
         ctx.strokeStyle = "orange";
         ctx.lineWidth = 4;
+        ctx.strokeRect(a, b, c, d);
+        ctx.setLineDash([3]);
+        ctx.strokeStyle = "white";
         ctx.strokeRect(a, b, c, d);
       } else {
         ctx.setLineDash([]);

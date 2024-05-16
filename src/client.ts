@@ -187,9 +187,12 @@ function main() {
       }
 
       if (selected) {
-        ctx.setLineDash([5]);
+        ctx.setLineDash([2, 4]);
         ctx.strokeStyle = "orange";
         ctx.lineWidth = 4.0;
+        ctx.strokeRect(a, b, c, d);
+        ctx.setLineDash([3]);
+        ctx.strokeStyle = "white";
         ctx.strokeRect(a, b, c, d);
       } else {
         ctx.setLineDash([]);

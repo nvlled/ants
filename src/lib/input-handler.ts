@@ -26,16 +26,16 @@ export interface InputHandler {
   draw(ctx: CanvasRenderingContext2D): void;
 }
 
-type Clipboard = {
+type CellBuffer = {
   ref: [number, number];
-  cells: ClipboardEntry[];
+  data: {
+    di: number;
+    dj: number;
+    value: number;
+  }[];
 };
 
-type ClipboardEntry = {
-  di: number;
-  dj: number;
-  value: number;
-};
+type MoveSelectState = "nop" | "moving" | "pasting";
 
 export class MoveSelectHandler implements InputHandler {
   transform: GridTransform;
@@ -56,11 +56,16 @@ export class MoveSelectHandler implements InputHandler {
     ctrlKey: false,
   };
 
-  pasting = false;
-  clipboard: Clipboard = {
+  copiedCells: CellBuffer = {
     ref: [0, 0],
-    cells: [],
+    data: [],
   };
+  draggedCells: CellBuffer = {
+    ref: [0, 0],
+    data: [],
+  };
+
+  state: MoveSelectState = "nop";
 
   constructor(public grid: Grid) {
     this.transform = new GridTransform(grid);
@@ -74,7 +79,7 @@ export class MoveSelectHandler implements InputHandler {
 
     switch (e.key) {
       case "Escape": {
-        this.pasting = false;
+        this.state = "nop";
         this.reset();
         break;
       }
@@ -108,7 +113,7 @@ export class MoveSelectHandler implements InputHandler {
         break;
 
       case "x": {
-        this.copySelected();
+        this.copySelected(this.copiedCells);
         for (const [i, j] of grid.getAllSelected()) {
           grid.setValue(i, j, null);
         }
@@ -118,16 +123,28 @@ export class MoveSelectHandler implements InputHandler {
 
       case "c": {
         if (e.ctrlKey) {
-          this.copySelected();
+          this.copySelected(this.copiedCells);
           grid.clearSelected();
         }
         break;
       }
       case "v": {
-        if (this.clipboard.cells.length > 0) {
-          this.pasting = true;
+        if (this.copiedCells.data.length > 0) {
+          this.state = "pasting";
         }
         break;
+      }
+
+      case "r": {
+        if (this.state === "pasting") {
+          for (const e of this.copiedCells.data) {
+            [e.di, e.dj] = [e.dj, -e.di];
+          }
+        } else if (this.state === "moving") {
+          for (const e of this.draggedCells.data) {
+            [e.di, e.dj] = [e.dj, -e.di];
+          }
+        }
       }
     }
 
@@ -139,7 +156,7 @@ export class MoveSelectHandler implements InputHandler {
   }
 
   onMouseMove(x: number, y: number, dx: number, dy: number) {
-    const { mouse, clipboard } = this;
+    const { mouse, state, grid } = this;
     mouse.hover = [x, y];
 
     if (!mouse.start || !mouse.current) {
@@ -150,17 +167,30 @@ export class MoveSelectHandler implements InputHandler {
     if (mouse.button === MouseButton.right) {
       this.transform.move(-dx, -dy);
     }
+
+    const [i, j] = grid.getCellAt(x, y);
+
+    if (
+      mouse.button === MouseButton.left &&
+      state === "nop" &&
+      grid.selected.size > 0 &&
+      grid.getValue(i, j) != null
+    ) {
+      this.state = "moving";
+      this.copySelected(this.draggedCells, grid.posToInt(i, j));
+    }
+
     return true;
   }
 
   onMouseDown(x: number, y: number, button: number, flags: MouseEventFlags) {
-    const { mouse, grid, clipboard } = this;
+    const { mouse, grid, copiedCells } = this;
 
     mouse.button = button;
     mouse.shiftKey = flags.shiftKey;
     mouse.ctrlKey = flags.ctrlKey;
 
-    if (mouse.hover && clipboard.cells.length && this.pasting) {
+    if (mouse.hover && copiedCells.data.length && this.state === "pasting") {
       return false;
     }
 
@@ -222,17 +252,21 @@ export class MoveSelectHandler implements InputHandler {
 
   onMouseUp(x: number, y: number, button: number) {
     console.log("mouse up");
-    const { mouse, grid, clipboard } = this;
+    const { mouse, grid } = this;
 
-    if (mouse.hover && clipboard.cells.length && this.pasting) {
+    if (
+      mouse.hover &&
+      this.copiedCells.data.length &&
+      this.state === "pasting"
+    ) {
       if (mouse.button === MouseButton.left) {
         grid.clearSelected();
         const [ei, ej] = grid.getCellAt(...mouse.hover);
-        for (const e of this.clipboard.cells) {
+        for (const e of this.copiedCells.data) {
           const [di, dj] = [ei + e.di, ej + e.dj];
           grid.setValue(di, dj, e.value);
         }
-        this.pasting = false;
+        this.state = "nop";
       }
       return true;
     }
@@ -259,32 +293,26 @@ export class MoveSelectHandler implements InputHandler {
       return true;
     }
 
-    let [i1, j1] = grid.getCellAt(...mouse.start);
-    let [i2, j2] = grid.getCellAt(...mouse.current);
-    let [di, dj] = [i2 - i1, j2 - j1];
+    if (this.state === "moving") {
+      const [ei, ej] = grid.getCellAt(...mouse.current);
 
-    if (di != 0 || dj != 0) {
-      const selected = [];
-      let abort = false;
-      for (let [i, j] of grid.getAllSelected()) {
-        [i2, j2] = [i + di, j + dj];
-        if (i2 < 0 || j2 < 0 || i2 >= grid.rows || j2 >= grid.cols) {
-          abort = true;
-          break;
-        }
-        selected.push([i, j, grid.getValue(i, j)]);
-        grid.deselect(i, j);
+      for (const [i, j] of grid.getAllSelected()) {
         grid.setValue(i, j, null);
       }
 
-      if (!abort) {
-        for (const [i, j, val] of selected) {
-          if (val != null) {
-            grid.setValue(i + di, j + dj, val);
-            grid.select(i + di, j + dj);
-          }
-        }
+      grid.clearSelected();
+      for (const e of this.draggedCells.data) {
+        const [i, j] = [ei + e.di, ej + e.dj];
+        grid.setValue(i, j, e.value);
+        grid.select(i, j);
       }
+
+      this.state = "nop";
+      this.draggedCells.data.splice(0);
+      this.draggedCells.ref = [0, 0];
+
+      this.reset();
+      return true;
     }
 
     this.reset();
@@ -301,32 +329,42 @@ export class MoveSelectHandler implements InputHandler {
     this.mouse.areaSelect = false;
   }
 
-  copySelected() {
-    const { grid, clipboard } = this;
+  copySelected(destination: CellBuffer, refIndex?: number) {
+    const { grid } = this;
 
-    clipboard.cells.splice(0);
+    destination.data.splice(0);
 
-    let min = Infinity;
-    for (const index of grid.selected) {
-      const [i, j] = grid.intToPos(index);
-      if (i + j < min) {
-        min = i + j;
-        clipboard.ref[0] = i;
-        clipboard.ref[1] = j;
-      }
+    if (refIndex != null) {
+      destination.ref = grid.intToPos(refIndex);
+    } else {
+      let temp: number[] = [];
+      for (const e of grid.selected) temp.push(e);
+
+      temp.sort((a, b) => {
+        const [ai, aj] = grid.intToPos(a);
+        const [bi, bj] = grid.intToPos(b);
+        return ai + aj - bi + bj;
+      });
+
+      const start = temp[0];
+      const end = temp[temp.length - 1];
+
+      const [si, sj] = grid.intToPos(start);
+      const [ei, ej] = grid.intToPos(end);
+
+      destination.ref[0] = si + Math.floor((ei - si) / 2);
+      destination.ref[1] = sj + Math.floor((ej - sj) / 2);
     }
 
-    const [si, sj] = clipboard.ref;
+    const [si, sj] = destination.ref;
     for (const [i, j] of grid.getAllSelected()) {
       const [di, dj] = [i - si, j - sj];
-      clipboard.cells.push({
+      destination.data.push({
         di,
         dj,
         value: grid.getValue(i, j),
       });
     }
-
-    console.log(clipboard);
   }
 
   update() {}
@@ -334,9 +372,13 @@ export class MoveSelectHandler implements InputHandler {
   draw(ctx: CanvasRenderingContext2D): void {
     const { mouse, grid } = this;
 
-    if (this.clipboard.cells.length > 0 && mouse.hover && this.pasting) {
+    if (
+      this.copiedCells.data.length > 0 &&
+      mouse.hover &&
+      this.state === "pasting"
+    ) {
       const [ei, ej] = grid.getCellAt(...mouse.hover);
-      for (const e of this.clipboard.cells) {
+      for (const e of this.copiedCells.data) {
         const [i, j] = [ei + e.di, ej + e.dj];
         const [a, b, c, d] = grid.getBoundingRect(i, j);
         ctx.fillStyle = "#0ff5";
@@ -356,6 +398,21 @@ export class MoveSelectHandler implements InputHandler {
       return;
     }
 
+    if (
+      this.draggedCells.data.length > 0 &&
+      mouse.current &&
+      this.state === "moving"
+    ) {
+      const [ei, ej] = grid.getCellAt(...mouse.current);
+      for (const e of this.draggedCells.data) {
+        const [i, j] = [ei + e.di, ej + e.dj];
+        const [a, b, c, d] = grid.getBoundingRect(i, j);
+        ctx.fillStyle = "#f005";
+        ctx.fillRect(a, b, c, d);
+      }
+      return;
+    }
+
     const [sx, sy] = mouse.start;
     const [x, y] = mouse.current;
     if (mouse.areaSelect) {
@@ -363,20 +420,6 @@ export class MoveSelectHandler implements InputHandler {
       const h = y - sy;
       ctx.fillStyle = "#0ff7";
       ctx.fillRect(sx, sy, w, h);
-    } else if (sx != x || sy != y) {
-      const [i1, j1] = grid.getCellAt(...mouse.start);
-      const [i2, j2] = grid.getCellAt(...mouse.current);
-      const [di, dj] = [i2 - i1, j2 - j1];
-
-      for (const [i, j] of grid.getAllSelected()) {
-        const [a, b, c, d] = grid.getBoundingRect(i + di, j + dj);
-
-        const val = grid.getValue(i, j);
-        if (val != null) {
-          ctx.fillStyle = "#0ff9";
-          ctx.fillRect(a, b, c, d);
-        }
-      }
     }
   }
 }

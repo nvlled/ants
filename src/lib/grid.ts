@@ -57,7 +57,7 @@ export class Grid {
     return i * 10 ** size + j;
   }
 
-  intToPos(index: number) {
+  intToPos(index: number): [number, number] {
     const size = Math.ceil(Math.log10(this.rows * this.cols));
     return [Math.floor(index / 10 ** size), index % 10 ** size];
   }
