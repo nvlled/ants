@@ -287,13 +287,13 @@ function MoveSelectSettings() {
       <label>
         <input
           type="checkbox"
-          checked={config.movesel.allowForceMove}
+          checked={config.movesel.disallowOccupiedMove}
           onChange={(e) => {
             store.dispatch({
               type: "updateMovesel",
               data: {
                 ...config.movesel,
-                allowForceMove: !config.movesel.allowForceMove,
+                disallowOccupiedMove: !config.movesel.disallowOccupiedMove,
               },
             });
           }}

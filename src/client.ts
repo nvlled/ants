@@ -64,7 +64,7 @@ function main() {
     }
   }
 
-  const moveselHandler = new MoveSelectHandler(grid);
+  const moveselHandler = new MoveSelectHandler(grid, configStore.current);
   const insertHandler = new InsertHandler(grid, configStore.current);
   let inputHandler = new NopHandler();
 
@@ -135,6 +135,7 @@ function main() {
 
   configStore.on(function (config) {
     insertHandler.config = config;
+    moveselHandler.config = config;
     updateCanvasCursor(config);
     updateInputHandler(config);
   });

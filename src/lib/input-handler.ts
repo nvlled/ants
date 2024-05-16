@@ -67,7 +67,7 @@ export class MoveSelectHandler implements InputHandler {
 
   state: MoveSelectState = "nop";
 
-  constructor(public grid: Grid) {
+  constructor(public grid: Grid, public config: Config) {
     this.transform = new GridTransform(grid);
   }
 
@@ -259,15 +259,31 @@ export class MoveSelectHandler implements InputHandler {
       this.copiedCells.data.length &&
       this.state === "pasting"
     ) {
-      if (mouse.button === MouseButton.left) {
-        grid.clearSelected();
+      let proceed = true;
+      if (this.config.movesel.disallowOccupiedMove) {
         const [ei, ej] = grid.getCellAt(...mouse.hover);
         for (const e of this.copiedCells.data) {
-          const [di, dj] = [ei + e.di, ej + e.dj];
-          grid.setValue(di, dj, e.value);
+          const [i, j] = [ei + e.di, ej + e.dj];
+          if (grid.getValue(i, j) != null) {
+            proceed = false;
+            break;
+          }
         }
-        this.state = "nop";
       }
+
+      if (proceed) {
+        if (mouse.button === MouseButton.left) {
+          grid.clearSelected();
+          const [ei, ej] = grid.getCellAt(...mouse.hover);
+          for (const e of this.copiedCells.data) {
+            const [i, j] = [ei + e.di, ej + e.dj];
+            grid.setValue(i, j, e.value);
+          }
+        }
+      }
+
+      this.state = "nop";
+
       return true;
     }
 
@@ -296,26 +312,38 @@ export class MoveSelectHandler implements InputHandler {
     if (this.state === "moving") {
       const [ei, ej] = grid.getCellAt(...mouse.current);
 
-      for (const [i, j] of grid.getAllSelected()) {
-        grid.setValue(i, j, null);
+      let proceed = true;
+      if (this.config.movesel.disallowOccupiedMove) {
+        for (const e of this.draggedCells.data) {
+          const [i, j] = [ei + e.di, ej + e.dj];
+          if (grid.getValue(i, j) != null) {
+            proceed = false;
+            break;
+          }
+        }
       }
 
-      grid.clearSelected();
-      for (const e of this.draggedCells.data) {
-        const [i, j] = [ei + e.di, ej + e.dj];
-        grid.setValue(i, j, e.value);
-        grid.select(i, j);
+      if (proceed) {
+        for (const [i, j] of grid.getAllSelected()) {
+          grid.setValue(i, j, null);
+        }
+
+        grid.clearSelected();
+        for (const e of this.draggedCells.data) {
+          const [i, j] = [ei + e.di, ej + e.dj];
+          grid.setValue(i, j, e.value);
+          grid.select(i, j);
+        }
       }
 
       this.state = "nop";
       this.draggedCells.data.splice(0);
       this.draggedCells.ref = [0, 0];
-
       this.reset();
+
       return true;
     }
 
-    this.reset();
     return true;
   }
 

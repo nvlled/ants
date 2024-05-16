@@ -23791,7 +23791,7 @@ var createConfigStore = () => new Store({
   initial: {
     mode: "paint",
     movesel: {
-      allowForceMove: false
+      disallowOccupiedMove: false
     },
     paint: {
       mode: "brush",
@@ -24034,13 +24034,13 @@ var MoveSelectSettings = function() {
         children: [
           jsx_dev_runtime2.jsxDEV("input", {
             type: "checkbox",
-            checked: config2.movesel.allowForceMove,
+            checked: config2.movesel.disallowOccupiedMove,
             onChange: (e) => {
               store2.dispatch({
                 type: "updateMovesel",
                 data: {
                   ...config2.movesel,
-                  allowForceMove: !config2.movesel.allowForceMove
+                  disallowOccupiedMove: !config2.movesel.disallowOccupiedMove
                 }
               });
             }

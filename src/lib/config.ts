@@ -4,7 +4,7 @@ import { Store } from "./store";
 export type Config = {
   mode: Mode;
   movesel: {
-    allowForceMove: boolean;
+    disallowOccupiedMove: boolean;
   };
   paint: {
     mode: "brush" | "fill" | "erase";
@@ -26,7 +26,7 @@ export const createConfigStore = () =>
     initial: {
       mode: "paint",
       movesel: {
-        allowForceMove: false,
+        disallowOccupiedMove: false,
       },
       paint: {
         mode: "brush",
