@@ -7,7 +7,7 @@ import Grid, {
 import { createRoot } from "react-dom/client";
 import { Settings, mountSettings } from "./lib/settings";
 import { throttle } from "./lib/throttle";
-import { createConfigStore, type Config } from "./lib/config";
+import { createConfigStore, type Config, type Mode } from "./lib/config";
 import {
   InsertHandler,
   MoveSelectHandler,
@@ -66,8 +66,8 @@ function main() {
     }
   }
 
-  const moveselHandler = new MoveSelectHandler(grid, configStore.current);
-  const insertHandler = new InsertHandler(grid, configStore.current);
+  const moveselHandler = new MoveSelectHandler(grid, configStore);
+  const insertHandler = new InsertHandler(grid, configStore);
   let inputHandler = new NopHandler();
 
   const stateLoader = new GridStateLoader();
@@ -130,15 +130,12 @@ function main() {
   });
 
   window.addEventListener("keydown", function (e) {
-    console.log("e", e.ctrlKey, e.code, e.key);
     inputHandler.onKeyPress(e);
   });
 
   (window as any).grid = grid;
 
   configStore.on(function (config) {
-    insertHandler.config = config;
-    moveselHandler.config = config;
     updateCanvasCursor(config);
     updateInputHandler(config);
   });

@@ -14,8 +14,8 @@ export type Config = {
 
 export type ConfigActions =
   | { type: "setMode"; mode: Mode }
-  | { type: "updateMovesel"; data: Config["movesel"] }
-  | { type: "updatePaint"; data: Config["paint"] };
+  | { type: "updateMovesel"; data: Partial<Config["movesel"]> }
+  | { type: "updatePaint"; data: Partial<Config["paint"]> };
 
 export type Mode = "movesel" | "paint";
 

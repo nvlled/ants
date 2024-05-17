@@ -190,7 +190,12 @@ function StatusBar() {
         <>
           <span
             className="color-block"
-            style={{ background: CellColor[config.paint.color] }}
+            style={{
+              background:
+                config.paint.color === -1
+                  ? "#111"
+                  : CellColor[config.paint.color],
+            }}
           />
           {config.paint.mode}
         </>
@@ -242,6 +247,14 @@ function PaintSettings() {
         outline: 3px dashed white;
       }
     }
+
+    table {
+      width: 100%;
+    }
+    table td {
+      border: 1px solid #555;
+      padding: 3px;
+    }
   `;
 
   function changeMode(mode: Config["paint"]["mode"]) {
@@ -276,18 +289,6 @@ function PaintSettings() {
           />
           fill
         </label>
-        {/*
-        <span> </span>
-        <label>
-          <input
-            type="radio"
-            name="paint"
-            checked={paint.mode == "erase"}
-            onChange={() => changeMode("erase")}
-          />
-          erase
-        </label>
-        */}
       </div>
       <br />
       {paint.mode != "erase" && (
@@ -327,10 +328,52 @@ function PaintSettings() {
               })
             }
           >
-            -
+            x
           </div>
         </label>
       )}
+      <h2>controls</h2>
+      <br />
+      <table>
+        <thead>
+          <tr>
+            <th>key/target</th>
+            <th>action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <tr key={n}>
+              <td>{n}</td>
+              <td>select color {n}</td>
+            </tr>
+          ))}
+          <tr>
+            <td>0</td>
+            <td>select clear color </td>
+          </tr>
+
+          <tr>
+            <td>f</td>
+            <td>fill paint</td>
+          </tr>
+          <tr>
+            <td>b</td>
+            <td>brush paint</td>
+          </tr>
+
+          <tr>
+            <td>
+              <br />
+            </td>
+            <td>
+              <br />
+            </td>
+          </tr>
+
+          <CommonControlTable />
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -449,9 +492,43 @@ function MoveSelectSettings() {
             <td>while dragging or pasting</td>
             <td>press R to rotate</td>
           </tr>
+
+          <tr>
+            <td>
+              <br />
+            </td>
+            <td>
+              <br />
+            </td>
+          </tr>
+
+          <CommonControlTable />
         </tbody>
       </table>
     </div>
+  );
+}
+
+function CommonControlTable() {
+  return (
+    <>
+      <tr>
+        <td>right click + drag</td>
+        <td>move or pan view</td>
+      </tr>
+      <tr>
+        <td>q</td>
+        <td>zoom out</td>
+      </tr>
+      <tr>
+        <td>w</td>
+        <td>zoom in</td>
+      </tr>
+      <tr>
+        <td>`</td>
+        <td>toggle mode</td>
+      </tr>
+    </>
   );
 }
 

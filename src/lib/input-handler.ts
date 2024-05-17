@@ -1,4 +1,4 @@
-import type { Config } from "./config";
+import type { Config, ConfigStore, Mode } from "./config";
 import Grid, { type CellColorID, type Pos } from "./grid";
 
 export const MouseButton = {
@@ -67,17 +67,26 @@ export class MoveSelectHandler implements InputHandler {
 
   state: MoveSelectState = "nop";
 
-  constructor(public grid: Grid, public config: Config) {
+  constructor(public grid: Grid, public configStore: ConfigStore) {
     this.transform = new GridTransform(grid);
   }
 
   onKeyPress(e: KeyboardEvent) {
-    const { grid, transform } = this;
+    const { mouse, grid, transform, configStore } = this;
 
     this.key.shiftKey = e.shiftKey;
     this.key.ctrlKey = e.ctrlKey;
 
     switch (e.key) {
+      case "`": {
+        if (!mouse.current) {
+          const nextMode: Mode =
+            configStore.current.mode == "movesel" ? "paint" : "movesel";
+          configStore.dispatch({ type: "setMode", mode: nextMode });
+        }
+        break;
+      }
+
       case "Escape": {
         this.state = "nop";
         this.reset();
@@ -251,8 +260,8 @@ export class MoveSelectHandler implements InputHandler {
   }
 
   onMouseUp(x: number, y: number, button: number) {
-    console.log("mouse up");
-    const { mouse, grid } = this;
+    const { mouse, grid, configStore } = this;
+    const config = configStore.current;
 
     if (
       mouse.hover &&
@@ -260,7 +269,7 @@ export class MoveSelectHandler implements InputHandler {
       this.state === "pasting"
     ) {
       let proceed = true;
-      if (this.config.movesel.disallowOccupiedMove) {
+      if (config.movesel.disallowOccupiedMove) {
         const [ei, ej] = grid.getCellAt(...mouse.hover);
         for (const e of this.copiedCells.data) {
           const [i, j] = [ei + e.di, ej + e.dj];
@@ -313,10 +322,11 @@ export class MoveSelectHandler implements InputHandler {
       const [ei, ej] = grid.getCellAt(...mouse.current);
 
       let proceed = true;
-      if (this.config.movesel.disallowOccupiedMove) {
+      if (config.movesel.disallowOccupiedMove) {
         for (const e of this.draggedCells.data) {
           const [i, j] = [ei + e.di, ej + e.dj];
-          if (grid.getValue(i, j) != null) {
+          const idx = grid.posToInt(i, j);
+          if (grid.getValue(i, j) != null && !grid.selected.has(idx)) {
             proceed = false;
             break;
           }
@@ -471,17 +481,26 @@ export class InsertHandler implements InputHandler {
     ctrlKey: false,
   };
 
-  constructor(public grid: Grid, public config: Config) {
+  constructor(public grid: Grid, public configStore: ConfigStore) {
     this.transform = new GridTransform(grid);
   }
 
   onKeyPress(e: KeyboardEvent): boolean {
-    const { grid, transform } = this;
+    const { mouse, grid, transform, configStore } = this;
 
     this.key.shiftKey = e.shiftKey;
     this.key.ctrlKey = e.ctrlKey;
 
     switch (e.key) {
+      case "`": {
+        if (!mouse.current) {
+          const nextMode: Mode =
+            configStore.current.mode == "movesel" ? "paint" : "movesel";
+          configStore.dispatch({ type: "setMode", mode: nextMode });
+        }
+        break;
+      }
+
       case "q":
         transform.zoomOut();
         break;
@@ -498,8 +517,39 @@ export class InsertHandler implements InputHandler {
       case "a":
         transform.move(-50, 0);
         break;
+
       case "d":
         transform.move(50, 0);
+        break;
+
+      case "f":
+        configStore.dispatch({ type: "updatePaint", data: { mode: "fill" } });
+        break;
+      case "b":
+        configStore.dispatch({ type: "updatePaint", data: { mode: "brush" } });
+        break;
+
+      case "1":
+      case "2":
+      case "3":
+      case "4":
+      case "5":
+      case "6": {
+        configStore.dispatch({
+          type: "updatePaint",
+          data: {
+            color: parseInt(e.key) - 1,
+          },
+        });
+        break;
+      }
+      case "0":
+        configStore.dispatch({
+          type: "updatePaint",
+          data: {
+            color: -1,
+          },
+        });
         break;
     }
 
@@ -511,8 +561,8 @@ export class InsertHandler implements InputHandler {
   }
 
   onMouseMove(x: number, y: number, dx: number, dy: number): boolean {
-    const { mouse, grid, config } = this;
-    const { paint } = config;
+    const { mouse, grid, configStore } = this;
+    const { paint } = configStore.current;
 
     if (!mouse.start || !mouse.current) {
       return false;
@@ -529,19 +579,20 @@ export class InsertHandler implements InputHandler {
       grid.setValue(i, j, null);
     } else if (paint.mode == "brush") {
       const [i, j] = grid.getCellAt(x, y);
-      grid.setValue(i, j, this.config.paint.color);
+      grid.setValue(i, j, paint.color);
     }
 
     return true;
   }
+
   onMouseDown(
     x: number,
     y: number,
     button: number,
     flags: MouseEventFlags
   ): boolean {
-    const { mouse, grid, config } = this;
-    const { paint } = config;
+    const { mouse, grid, configStore } = this;
+    const { paint } = configStore.current;
     mouse.start = [x, y];
     mouse.current = [x, y];
     mouse.button = button;
@@ -557,15 +608,15 @@ export class InsertHandler implements InputHandler {
       grid.setValue(i, j, null);
     } else if (paint.mode == "brush") {
       const [i, j] = grid.getCellAt(x, y);
-      grid.setValue(i, j, this.config.paint.color);
+      grid.setValue(i, j, paint.color);
     }
 
     return true;
   }
 
   onMouseUp(x: number, y: number, button: number): boolean {
-    const { mouse, grid, config } = this;
-    const { paint } = config;
+    const { mouse, grid, configStore } = this;
+    const { paint } = configStore.current;
 
     if (!mouse.start || !mouse.current) return false;
     if (mouse.button != button) return false;
@@ -582,7 +633,7 @@ export class InsertHandler implements InputHandler {
       const [si, sj] = grid.getCellAt(...mouse.start);
       const [i, j] = grid.getCellAt(...mouse.current);
       const startColor = grid.getValue(si, sj);
-      this.paintFill(startColor, config.paint.color, i, j);
+      this.paintFill(startColor, paint.color, i, j);
     }
 
     this.reset();
@@ -598,7 +649,7 @@ export class InsertHandler implements InputHandler {
     si: number,
     sj: number
   ) {
-    const { grid, config } = this;
+    const { grid } = this;
 
     const visited = new Set<number>();
     const queue: number[] = [si, sj];
