@@ -1,3 +1,6 @@
+- okay, wtf why bun isn't building the client.js
+  on github actions
+
 - select-fill
   select all blocks with the same color
 

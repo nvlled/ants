@@ -10,6 +10,9 @@ const entrypoints = Array.from(
   new Bun.Glob("*.{ts,tsx}").scanSync({ cwd: config.src })
 ).map((f) => path.join(config.src, f));
 
+console.log(config);
+console.log("entry points", entrypoints);
+
 switch (command) {
   case "build":
     await build();
@@ -28,6 +31,11 @@ async function build() {
     outdir: config.dest,
     target: "browser",
   });
+  if (!output.success) {
+    for (const log of output.logs) {
+      console.log(log);
+    }
+  }
   for (const entry of output.outputs) {
     console.log("build", entry.path);
   }

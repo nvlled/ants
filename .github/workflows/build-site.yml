@@ -49,7 +49,7 @@ jobs:
       - name: Build site with bun
         run: |
           export PATH=~/.bun/bin:$PATH
-          bun --version
+          bun install
           bun run build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
@@ -67,4 +67,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
