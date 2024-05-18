@@ -12,7 +12,7 @@ const entrypoints = Array.from(
 
 switch (command) {
   case "build":
-    build();
+    await build();
     break;
 
   case "dev":
@@ -21,13 +21,16 @@ switch (command) {
     break;
 }
 
-function build() {
-  Bun.build({
+async function build() {
+  const output = await Bun.build({
     entrypoints,
     minify: true,
     outdir: config.dest,
     target: "browser",
   });
+  for (const entry of output.outputs) {
+    console.log("build", entry.path);
+  }
   for (const f of new Bun.Glob(path.join(config.site, "**/*")).scanSync()) {
     console.log("-> ", f);
   }
