@@ -29,13 +29,13 @@ jobs:
   # Build job
   build:
     runs-on: ubuntu-latest
-    env:
-      HUGO_VERSION: 0.124.1
     steps:
       - name: Install bun.sh
         run: |
           curl -fsSL https://bun.sh/install | bash
           export PATH=~/.bun/bin/:$PATH
+          source ~/.bashrc
+          bun --version
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,6 +48,8 @@ jobs:
 
       - name: Build site with bun
         run: |
+          export PATH=~/.bun/bin:$PATH
+          bun --version
           bun run build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
