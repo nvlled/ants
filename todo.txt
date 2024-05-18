@@ -1,13 +1,9 @@
-
-- disallow moving into cells
-
-
-- keybinds to change settings
+- select-fill
+  select all blocks with the same color
 
 - implement langton's ant
   - when there are selected cells,
     show select menu to set cell type
-
 
 - pause button
 - step button
@@ -15,5 +11,7 @@
 - minimap
 
 - brush size and shape
+
+- improve shitty input handler code
 
 it seems I can arrange perfect squares into perfect triangles as well?

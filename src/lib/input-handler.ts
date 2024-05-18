@@ -144,6 +144,7 @@ export class MoveSelectHandler implements InputHandler {
         break;
       }
 
+      //rotation while pasting or moving
       case "r": {
         if (this.state === "pasting") {
           for (const e of this.copiedCells.data) {
@@ -293,6 +294,7 @@ export class MoveSelectHandler implements InputHandler {
 
       this.state = "nop";
 
+      this.reset();
       return true;
     }
 
@@ -350,10 +352,10 @@ export class MoveSelectHandler implements InputHandler {
       this.draggedCells.data.splice(0);
       this.draggedCells.ref = [0, 0];
       this.reset();
-
       return true;
     }
 
+    this.reset();
     return true;
   }
 
