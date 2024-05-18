@@ -28,7 +28,7 @@ function build() {
     outdir: config.dest,
     target: "browser",
   });
-  for (const f of new Bun.Glob(path.join(config.site, "**")).scanSync()) {
+  for (const f of new Bun.Glob(path.join(config.site, "**/*")).scanSync()) {
     console.log("-> ", f);
   }
 }

@@ -1,5 +1,5 @@
 export default {
-  site: "docs",
+  site: "public",
   src: "src",
-  dest: "docs/scripts",
+  dest: "public/scripts",
 };
